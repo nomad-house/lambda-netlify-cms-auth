@@ -1,18 +1,18 @@
 {
-  "name": "lambda-netlify-cms-auth",
+  "name": "nomad-netlify-cms-auth",
   "version": "0.0.3",
-  "description": "",
+  "description": "webpacked lambda handlers for netlify cms to authenticate with github",
   "files": [
     "dist"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "npm run tsc-prod && npm run ts node_modules/.bin/webpack",
-    "build-prod": "NODE_ENV=production npm run build",
+    "build": "npm run tsc:prod && npm run ts node_modules/.bin/webpack",
+    "build:prod": "NODE_ENV=production npm run build",
     "node": "node",
     "ts": "npm run node -- -r ts-node/register",
-    "tsc-prod": "node_modules/.bin/tsc --project tsconfig.prod.json",
+    "tsc:prod": "node_modules/.bin/tsc --project tsconfig.prod.json",
     "debug": "npm run ts --inspect-brk"
   },
   "repository": {
