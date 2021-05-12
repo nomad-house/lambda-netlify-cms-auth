@@ -1,6 +1,6 @@
 {
   "name": "nomad-netlify-cms-auth",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "webpacked lambda handlers for netlify cms to authenticate with github",
   "files": [
     "dist"
