@@ -1,38 +1,26 @@
-import { APIGatewayEvent, Context, Callback } from "aws-lambda";
-import { create } from "simple-oauth2";
-import { generate } from "randomstring";
+import { URLSearchParams } from "url";
+import { sign } from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
+import { APIGatewayEvent, Context, Callback, APIGatewayProxyResult } from "aws-lambda";
 
-export const handler = (_: APIGatewayEvent, __: Context, callback: Callback) => {
+export const handler = (
+  _: APIGatewayEvent,
+  __: Context,
+  callback: Callback<APIGatewayProxyResult>
+) => {
   try {
-    const oauth2 = create({
-      client: {
-        id: `${process.env.OAUTH_CLIENT_ID}`,
-        secret: `${process.env.OAUTH_CLIENT_SECRET}`,
-      },
-      auth: {
-        tokenHost: "https://github.com",
-        tokenPath: "/login/oauth/access_token",
-        authorizePath: "/login/oauth/authorize",
-      },
-    });
-
-    const originPattern = process.env.OAUTH_ORIGIN || "";
-    if (originPattern === "") {
-      throw new Error("Will not run without a safe ORIGIN pattern in production.");
-    }
-
-    // Authorization uri definition
-    const Location = oauth2.authorizationCode.authorizeURL({
-      // eslint-disable-next-line @typescript-eslint/camelcase
-      redirect_uri: process.env.REDIRECT_URL,
+    const secret = process.env.JWT_SECRET ?? "lousy-secret-yo";
+    const params = {
+      client_id: process.env.GITHUB_CLIENT_ID,
       scope: "repo,user",
-      state: generate(32),
-    });
+      state: sign({ nonce: uuidv4() }, secret, { expiresIn: 30 }),
+    };
 
     callback(null, {
-      statusCode: 302,
+      body: "",
+      statusCode: 307,
       headers: {
-        Location,
+        Location: `https://github.com/login/oauth/authorize?${new URLSearchParams(params)}`,
       },
     });
   } catch (err) {

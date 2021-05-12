@@ -1,83 +1,61 @@
-import { APIGatewayEvent, Context, Callback } from "aws-lambda";
-import { create } from "simple-oauth2";
+import { verify } from "jsonwebtoken";
+import { APIGatewayEvent, Context, Callback, APIGatewayProxyResult } from "aws-lambda";
+import { fetchToken } from "./fetchToken";
+import { renderSuccess, renderError } from "./render";
 
-const oauthProvider = "github";
+const secret = process.env.JWT_SECRET ?? "lousy-secret-yo";
 
-export const handler = async (event: APIGatewayEvent, _: Context, callback: Callback) => {
+export const handler = async (
+  event: APIGatewayEvent,
+  _: Context,
+  callback: Callback<APIGatewayProxyResult>
+) => {
+  const headers = { "Content-Type": "text/html; charset=utf-8" };
+  const queryParams = event.queryStringParameters ?? {};
+  const code = queryParams["code"];
+  const state = queryParams["state"] as string;
+  const origin = `${process.env.ORIGIN}`;
   try {
-    const oauth2 = create({
-      client: {
-        id: `${process.env.OAUTH_CLIENT_ID}`,
-        secret: `${process.env.OAUTH_CLIENT_SECRET}`
-      },
-      auth: {
-        tokenHost: "https://github.com",
-        tokenPath: "/login/oauth/access_token",
-        authorizePath: "/login/oauth/authorize"
+    if (!code) {
+      return callback(null, {
+        statusCode: 400,
+        headers,
+        body: renderError(origin, "Code parameter missing"),
+      });
+    }
+
+    verify(state, secret, (error, _) => {
+      if (error) {
+        return callback(null, {
+          statusCode: 400,
+          headers,
+          body: renderError(origin, "Invalid state parameter"),
+        });
       }
     });
 
-    const originPattern = process.env.OAUTH_ORIGIN || "";
-    if (!originPattern.length) {
-      throw new Error("Will not run without a safe ORIGIN pattern in production.");
+    const tokenResponse = await fetchToken(code);
+    const { access_token, error } = tokenResponse;
+
+    if (error) {
+      return callback(null, {
+        statusCode: 400,
+        headers,
+        body: renderError(origin, error),
+      });
     }
 
-    const code = event.queryStringParameters?.code;
-
-    const options = {
-      code
-    };
-
-    // if (oauthProvider === "gitlab") {
-    //   options.client_id = process.env.OAUTH_CLIENT_ID;
-    //   options.client_secret = process.env.OAUTH_CLIENT_SECRET;
-    //   options.grant_type = "authorization_code";
-    //   options.redirect_uri = process.env.REDIRECT_URL;
-    // }
-
-    let message;
-    let content;
-    try {
-      const result = await oauth2.authorizationCode.getToken(options as any);
-      const token = oauth2.accessToken.create(result);
-      message = "success";
-      content = {
-        token: token.token.access_token,
-        provider: oauthProvider
-      };
-    } catch (err) {
-      console.error("Access Token Error", err.message);
-      message = "error";
-      content = JSON.stringify(err);
-    }
-
-    callback(null, {
+    return callback(null, {
       statusCode: 200,
-      headers: {
-        "Content-Type": "text/html"
-      },
-      body: `<script>
-(function() {
-  function recieveMessage(e) {
-    console.log("recieveMessage %o", e)
-    if (!e.origin.match(${JSON.stringify(originPattern)})) {
-      console.log('Invalid origin: %s', e.origin);
-      return;
-    }
-    // send message to main window with da app
-    window.opener.postMessage(
-      'authorization:${oauthProvider}:${message}:${JSON.stringify(content)}',
-      e.origin
-    )
-  }
-  window.addEventListener("message", recieveMessage, false)
-  // Start handshare with parent
-  console.log("Sending message: %o", "${oauthProvider}")
-  window.opener.postMessage("authorizing:${oauthProvider}", "*")
-})()
-</script>`
+      headers,
+      body: renderSuccess(origin, access_token),
     });
   } catch (err) {
-    callback(err);
+    console.error(err);
+    return callback(null, {
+      statusCode: 500,
+      headers,
+      body: renderError(origin, JSON.stringify(err)),
+    });
   }
 };

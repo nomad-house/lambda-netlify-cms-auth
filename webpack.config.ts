@@ -1,20 +1,19 @@
-require("dotenv").config();
-import { Configuration } from "webpack";
-import UglifyJsPlugin from "uglifyjs-webpack-plugin";
 import { resolve } from "path";
+import { Configuration } from "webpack";
 
-const PROD = process.env.NODE_ENV === "production";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+// const TerserPlugin = require("terser-webpack-plugin");
 
-const _config: Configuration = {
-  mode: PROD ? "production" : "development",
+const config: Configuration = {
+  mode: "production",
   target: "node",
+  devtool: "eval-source-map",
   entry: {
-    authUri: resolve(__dirname, "src", "authUri.ts"),
-    authCallback: resolve(__dirname, "src", "authCallback.ts"),
-    authSuccess: resolve(__dirname, "src", "authSuccess.ts"),
+    index: resolve(__dirname, "src", "index.ts"),
   },
   output: {
-    filename: "[name].js",
+    path: resolve(__dirname, "dist", "src"),
+    filename: "index.js",
     libraryTarget: "commonjs",
   },
   resolve: {
@@ -25,37 +24,23 @@ const _config: Configuration = {
   module: {
     rules: [
       {
-        test: /\.(t|j)sx?$/,
-        use: [
-          {
-            loader: "babel-loader",
-          },
-          {
-            loader: "ts-loader",
-            options: {
-              configFile: resolve(__dirname, "tsconfig.webpack.json"),
-            },
-          },
-        ],
-      },
-      {
-        test: /\.(t|j)s$/,
+        test: /\.ts$/,
         exclude: /node_modules/,
         use: [
           {
-            loader: "shebang-loader",
+            loader: "ts-loader",
+            options: {
+              configFile: "tsconfig.build.json",
+            },
           },
         ],
       },
     ],
   },
-  optimization: {
-    minimizer: [new UglifyJsPlugin()],
-  },
+  // optimization: {
+  //   minimize: true,
+  //   minimizer: [new TerserPlugin()],
+  // },
 };
 
-if (PROD) {
-  _config.devtool = "eval-source-map";
-}
-
-export default _config;
+export default config;

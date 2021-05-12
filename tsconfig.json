@@ -17,7 +17,6 @@
     "emitDecoratorMetadata": true,
     "sourceMap": true,
     "declaration": true,
-    "outDir": "dist",
     "types": ["node"],
     "typeRoots": ["node_modules/@types"]
   }
